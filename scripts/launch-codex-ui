@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly app_version="0.1.90"
+readonly port="5900"
+readonly url="http://127.0.0.1:${port}"
+readonly data_root="${XDG_DATA_HOME:-$HOME/.local/share}/hype-codex-ui"
+readonly state_root="${XDG_STATE_HOME:-$HOME/.local/state}/hype-codex-ui"
+readonly frontend="$data_root/node_modules/.bin/codexapp"
+readonly log_file="$state_root/server.log"
+
+notify() {
+    hype notify "Codex UI" "$1" --app "Codex UI" >/dev/null 2>&1 || true
+}
+
+require_command() {
+    if ! command -v "$1" >/dev/null 2>&1; then
+        notify "Missing required command: $1"
+        exit 1
+    fi
+}
+
+install_frontend() {
+    mkdir -p "$data_root" "$state_root"
+    notify "Installing the Codex UI frontend for first use…"
+    npm install --prefix "$data_root" "codexapp@$app_version" >>"$log_file" 2>&1
+
+    if npm install-scripts --help >/dev/null 2>&1; then
+        (
+            cd "$data_root"
+            npm install-scripts approve node-pty codexapp >>"$log_file" 2>&1 || true
+            npm rebuild node-pty codexapp >>"$log_file" 2>&1 || true
+        )
+    fi
+}
+
+lock_frontend_to_localhost() {
+    local cli_file="$data_root/node_modules/codexapp/dist-cli/index.js"
+    [ -f "$cli_file" ] || return 1
+    sed -i \
+        -e 's/server\.listen(port, "0\.0\.0\.0")/server.listen(port, "127.0.0.1")/' \
+        -e 's|Bind:     http://0\.0\.0\.0:|Bind:     http://127.0.0.1:|' \
+        "$cli_file"
+    grep -q 'server.listen(port, "127.0.0.1")' "$cli_file"
+}
+
+start_frontend() {
+    if curl --silent --fail --output /dev/null "$url"; then
+        return
+    fi
+
+    mkdir -p "$state_root"
+    nohup "$frontend" \
+        --port "$port" \
+        --no-tunnel \
+        --no-open \
+        --no-login \
+        --no-password \
+        --sandbox-mode workspace-write \
+        --approval-policy on-request \
+        >>"$log_file" 2>&1 </dev/null &
+
+    for _ in {1..80}; do
+        curl --silent --fail --output /dev/null "$url" && return
+        sleep 0.25
+    done
+
+    notify "Codex UI failed to start. See $log_file"
+    exit 1
+}
+
+open_app_window() {
+    if flatpak info io.github.ungoogled_software.ungoogled_chromium >/dev/null 2>&1; then
+        exec flatpak run io.github.ungoogled_software.ungoogled_chromium --app="$url" --class=CodexUI
+    fi
+
+    local browser
+    for browser in ungoogled-chromium chromium chromium-browser brave-browser brave google-chrome-stable google-chrome; do
+        if command -v "$browser" >/dev/null 2>&1; then
+            exec "$browser" --app="$url" --class=CodexUI
+        fi
+    done
+
+    notify "No Chromium-family browser was found"
+    exit 1
+}
+
+require_command node
+require_command npm
+require_command curl
+require_command codex
+
+if [ -x "$HOME/.local/bin/codex-ui" ] && curl --silent --fail --output /dev/null "$url"; then
+    exec "$HOME/.local/bin/codex-ui"
+fi
+
+if [ ! -x "$frontend" ]; then
+    install_frontend
+fi
+
+if ! lock_frontend_to_localhost; then
+    notify "Could not secure the Codex UI localhost binding"
+    exit 1
+fi
+
+start_frontend
+open_app_window
