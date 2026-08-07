@@ -8,6 +8,7 @@ the terminal UI.
 ## Features
 
 - Compact HypeBar icon that toggles a single Codex app window
+- Live agent status: animated amber while working and green confirmation when complete
 - Chromium app window without tabs or an address bar
 - Local Codex projects and existing ChatGPT/Codex authentication
 - `workspace-write` sandbox with `on-request` approvals
