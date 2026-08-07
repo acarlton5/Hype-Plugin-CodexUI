@@ -7,7 +7,7 @@ the terminal UI.
 
 ## Features
 
-- One-click HypeBar launcher
+- Compact HypeBar icon that toggles a single Codex app window
 - Chromium app window without tabs or an address bar
 - Local Codex projects and existing ChatGPT/Codex authentication
 - `workspace-write` sandbox with `on-request` approvals

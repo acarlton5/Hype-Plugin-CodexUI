@@ -12,7 +12,6 @@ PluginComponent {
 
     function launchCodex() {
         Quickshell.execDetached([launcherPath]);
-        ToastService.showInfo("Codex UI", "Opening local development workspace…");
     }
 
     pillClickAction: function() {
@@ -20,23 +19,10 @@ PluginComponent {
     }
 
     horizontalBarPill: Component {
-        Row {
-            spacing: Theme.spacingXS
-
-            HypeIcon {
-                anchors.verticalCenter: parent.verticalCenter
-                name: "code"
-                color: Theme.primary
-                size: Theme.iconSize - 3
-            }
-
-            StyledText {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "CODEX"
-                color: Theme.primary
-                font.pixelSize: Theme.fontSizeMedium
-                font.weight: Font.Bold
-            }
+        HypeIcon {
+            name: "code"
+            color: Theme.primary
+            size: Theme.iconSize
         }
     }
 

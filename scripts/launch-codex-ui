@@ -108,10 +108,29 @@ install_browser() {
     fi
 }
 
+find_codex_window() {
+    command -v hyprctl >/dev/null 2>&1 || return 0
+    hyprctl clients -j 2>/dev/null | node -e 'let input = ""; process.stdin.on("data", chunk => input += chunk); process.stdin.on("end", () => { try { const client = JSON.parse(input).find(item => item.class === "chrome-127.0.0.1__-Default" || item.initialTitle === "127.0.0.1_/"); if (client) process.stdout.write(client.address); } catch {} });'
+}
+
+toggle_existing_window() {
+    local address
+    address="$(find_codex_window)"
+    [ -n "$address" ] || return 1
+    if ! hyprctl dispatch "hl.dsp.window.close({ window = \"address:$address\" })" >/dev/null 2>&1; then
+        hyprctl dispatch closewindow "address:$address" >/dev/null
+    fi
+    return 0
+}
+
 require_command node
 require_command npm
 require_command curl
 require_command codex
+
+if toggle_existing_window; then
+    exit 0
+fi
 
 if [ -x "$HOME/.local/bin/codex-ui" ] && curl --silent --fail --output /dev/null "$url"; then
     exec "$HOME/.local/bin/codex-ui"
