@@ -70,7 +70,8 @@ start_frontend() {
 }
 
 open_app_window() {
-    if flatpak info io.github.ungoogled_software.ungoogled_chromium >/dev/null 2>&1; then
+    if command -v flatpak >/dev/null 2>&1 && \
+        flatpak info io.github.ungoogled_software.ungoogled_chromium >/dev/null 2>&1; then
         exec flatpak run io.github.ungoogled_software.ungoogled_chromium --app="$url" --class=CodexUI
     fi
 
@@ -81,8 +82,30 @@ open_app_window() {
         fi
     done
 
-    notify "No Chromium-family browser was found"
-    exit 1
+    install_browser
+    exec flatpak run io.github.ungoogled_software.ungoogled_chromium --app="$url" --class=CodexUI
+}
+
+install_browser() {
+    if ! command -v flatpak >/dev/null 2>&1; then
+        notify "No Chromium-family browser or Flatpak installation was found"
+        exit 1
+    fi
+
+    mkdir -p "$state_root"
+    notify "No supported browser found; installing Ungoogled Chromium from Flathub…"
+
+    if ! flatpak remote-add --user --if-not-exists flathub \
+        https://flathub.org/repo/flathub.flatpakrepo >>"$log_file" 2>&1; then
+        notify "Could not configure Flathub. See $log_file"
+        exit 1
+    fi
+
+    if ! flatpak install --user --noninteractive flathub \
+        io.github.ungoogled_software.ungoogled_chromium >>"$log_file" 2>&1; then
+        notify "Could not install Ungoogled Chromium. See $log_file"
+        exit 1
+    fi
 }
 
 require_command node

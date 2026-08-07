@@ -13,14 +13,16 @@ the terminal UI.
 - `workspace-write` sandbox with `on-request` approvals
 - Localhost-only server with tunnels disabled
 - First-launch bootstrap on Linux ARM64 and x86-64
+- Browser detection with automatic Ungoogled Chromium installation through Flatpak when needed
 
 ## Requirements
 
 - HypeShell 1.5.0 or newer
 - Codex CLI, already signed in
 - Node.js 18 or newer, npm, and curl
-- Ungoogled Chromium, Chromium, Brave, or Google Chrome
-- Flatpak is supported when Ungoogled Chromium is installed from Flathub
+- Ungoogled Chromium, Chromium, Brave, or Google Chrome; when none is installed,
+  the launcher installs Ungoogled Chromium from Flathub automatically
+- Flatpak is required only for that automatic browser fallback
 
 ## Install
 

@@ -2,7 +2,7 @@
     "id": "hypeCodexUI",
     "name": "Codex UI",
     "description": "Launch Codex as a local, chromeless development app.",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "license": "MIT",
     "author": "HypeShell",
     "icon": "code",
