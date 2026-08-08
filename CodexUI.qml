@@ -12,6 +12,7 @@ PluginComponent {
     property string completedThreadId: ""
     readonly property string launcherPath: Qt.resolvedUrl("scripts/launch-codex-ui").toString().replace("file://", "")
     readonly property string watcherPath: Qt.resolvedUrl("scripts/watch-codex-activity.js").toString().replace("file://", "")
+    readonly property string taskQueuePath: Qt.resolvedUrl("scripts/watch-task-queue.js").toString().replace("file://", "")
     readonly property url idleIconPath: Qt.resolvedUrl("assets/codexui-icon.svg")
 
     function launchCodex() {
@@ -47,6 +48,20 @@ PluginComponent {
 
         stderr: SplitParser {
             onRead: data => console.warn("Codex activity watcher:", data.trim())
+        }
+    }
+
+    Process {
+        id: taskQueueWatcher
+        running: true
+        command: ["node", root.taskQueuePath]
+
+        stdout: SplitParser {
+            onRead: data => root.updateActivity(data.trim())
+        }
+
+        stderr: SplitParser {
+            onRead: data => console.warn("Codex task queue:", data.trim())
         }
     }
 

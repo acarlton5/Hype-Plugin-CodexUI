@@ -61,3 +61,56 @@ your user account. Keep the service local and retain Codex approval prompts.
 
 This plugin is MIT licensed. `codexapp` and Codex are separate projects governed
 by their respective licenses and terms.
+
+
+## Optional agent task queue
+
+The task queue activates automatically on DSS developer machines when either
+`~/DevBox` or `~/Projects` contains both `.codex_profile/` and `AGENTS/`. Its
+default queue is `<detected-root>/.agent-tasks`, and its workspace root is the
+detected DSS root. A generic folder named `DevBox` alone does not activate it.
+
+On other installations the helper exits immediately, creates nothing, and runs
+no persistent process. Non-DSS users can still opt in with any queue root using
+the explicit configuration below. The queue structure is:
+
+```text
+<queue-root>/
+  inbox/
+  in-progress/
+  completed/
+  failed/
+```
+
+Then create `~/.config/hype-codex-ui/task-queue.json` with explicit absolute
+paths:
+
+```json
+{
+  "enabled": true,
+  "queueRoot": "/absolute/path/to/queue-root",
+  "workspaceRoot": "/absolute/path/to/projects",
+  "intervalSeconds": 30,
+  "sandbox": "workspace-write"
+}
+```
+
+Set enabled to false to disable automatic DSS detection. Restart HypeShell after changing the queue configuration. Only `.md` files in
+`inbox/` count as tasks. Each task needs YAML frontmatter with a `workspace`
+path relative to the configured `workspaceRoot`:
+
+```markdown
+---
+workspace: MyProject
+---
+
+# Goal
+
+Describe the bounded development task and its acceptance checks.
+```
+
+The helper performs a local filesystem check first. An empty inbox never starts
+Codex and uses no model quota. When a task exists, it is atomically moved to
+`in-progress/`; `codex exec --sandbox workspace-write` runs only after that
+claim succeeds. The task and its JSONL run record then move to `completed/` or
+`failed/`.
