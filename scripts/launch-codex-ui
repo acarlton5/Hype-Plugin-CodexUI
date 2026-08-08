@@ -16,6 +16,8 @@ fi
 readonly app_url
 readonly data_root="${XDG_DATA_HOME:-$HOME/.local/share}/hype-codex-ui"
 readonly state_root="${XDG_STATE_HOME:-$HOME/.local/state}/hype-codex-ui"
+readonly native_browser_profile="$data_root/browser-profile"
+readonly flatpak_browser_profile="$HOME/.config/hype-codex-ui/browser-profile"
 readonly frontend="$data_root/node_modules/.bin/codexapp"
 readonly log_file="$state_root/server.log"
 readonly launcher_path="$(realpath "${BASH_SOURCE[0]}")"
@@ -43,7 +45,7 @@ install_desktop_integration() {
     mkdir -p "$applications_dir" "$icons_dir"
     if [ -f "$icon_source" ]; then
         install -m 0644 "$icon_source" "$icons_dir/codex-ui.svg"
-        install -m 0644 "$icon_source" "$icons_dir/chrome-127.0.0.1__-Default.svg"
+        rm -f "$icons_dir/chrome-127.0.0.1__-Default.svg"
     fi
 
     printf '%s\n' \
@@ -56,8 +58,8 @@ install_desktop_integration() {
         'Terminal=false' \
         'Categories=Development;IDE;' \
         'StartupNotify=true' \
-        'StartupWMClass=chrome-127.0.0.1__-Default' \
-        'X-GNOME-WMClass=chrome-127.0.0.1__-Default' \
+        'StartupWMClass=codex-ui' \
+        'X-GNOME-WMClass=codex-ui' \
         >"$desktop_file"
 
     if command -v update-desktop-database >/dev/null 2>&1; then
@@ -117,18 +119,19 @@ start_frontend() {
 open_app_window() {
     if command -v flatpak >/dev/null 2>&1 && \
         flatpak info io.github.ungoogled_software.ungoogled_chromium >/dev/null 2>&1; then
-        exec flatpak run io.github.ungoogled_software.ungoogled_chromium --app="$app_url" --class=CodexUI
+        exec flatpak run io.github.ungoogled_software.ungoogled_chromium --user-data-dir="$flatpak_browser_profile" --no-first-run --app="$app_url" --class=codex-ui
     fi
 
     local browser
     for browser in ungoogled-chromium chromium chromium-browser brave-browser brave google-chrome-stable google-chrome; do
         if command -v "$browser" >/dev/null 2>&1; then
-            exec "$browser" --app="$app_url" --class=CodexUI
+            mkdir -p "$native_browser_profile"
+            exec "$browser" --user-data-dir="$native_browser_profile" --no-first-run --app="$app_url" --class=codex-ui
         fi
     done
 
     install_browser
-    exec flatpak run io.github.ungoogled_software.ungoogled_chromium --app="$app_url" --class=CodexUI
+    exec flatpak run io.github.ungoogled_software.ungoogled_chromium --user-data-dir="$flatpak_browser_profile" --no-first-run --app="$app_url" --class=codex-ui
 }
 
 install_browser() {
@@ -155,7 +158,7 @@ install_browser() {
 
 find_codex_window() {
     command -v hyprctl >/dev/null 2>&1 || return 0
-    hyprctl clients -j 2>/dev/null | node -e 'let input = ""; process.stdin.on("data", chunk => input += chunk); process.stdin.on("end", () => { try { const client = JSON.parse(input).find(item => item.class === "chrome-127.0.0.1__-Default" || item.initialTitle === "127.0.0.1_/"); if (client) process.stdout.write(client.address + "\t" + (client.workspace?.name || "")); } catch {} });'
+    hyprctl clients -j 2>/dev/null | node -e 'let input = ""; process.stdin.on("data", chunk => input += chunk); process.stdin.on("end", () => { try { const client = JSON.parse(input).find(item => item.class === "codex-ui" || item.initialClass === "codex-ui" || item.initialTitle === "127.0.0.1_/"); if (client) process.stdout.write(client.address + "\t" + (client.workspace?.name || "")); } catch {} });'
 }
 
 toggle_existing_window() {
