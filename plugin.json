@@ -2,7 +2,7 @@
     "id": "hypeCodexUI",
     "name": "Codex UI",
     "description": "Launch Codex as a local, chromeless development app.",
-    "version": "1.2.1",
+    "version": "1.1.4",
     "license": "MIT",
     "author": "HypeShell",
     "icon": "smart_toy",
@@ -10,6 +10,6 @@
     "capabilities": ["hypebar-widget"],
     "component": "./CodexUI.qml",
     "requires_hype": ">=1.5.0",
-    "requires": ["node", "npm", "curl", "codex"],
+    "requires": ["node", "npm", "curl"],
     "permissions": ["process", "network"]
 }
