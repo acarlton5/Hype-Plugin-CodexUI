@@ -11,56 +11,8 @@ PluginComponent {
     property string activityState: "idle"
     property string completedThreadId: ""
     readonly property string launcherPath: Qt.resolvedUrl("scripts/launch-codex-ui").toString().replace("file://", "")
-    readonly property string watcherCode: `
-const fs = require("fs");
-const path = require("path");
-const home = process.env.HOME || "";
-const roots = [
-  path.join(process.env.XDG_DATA_HOME || path.join(home, ".local/share"), "hype-codex-ui"),
-  path.join(process.env.XDG_DATA_HOME || path.join(home, ".local/share"), "codex-ui")
-];
-let WebSocketImpl = null;
-for (const root of roots) {
-  const candidate = path.join(root, "node_modules/ws");
-  if (fs.existsSync(candidate)) { WebSocketImpl = require(candidate); break; }
-}
-if (!WebSocketImpl) process.exit(0);
-const active = new Set();
-let completionTimer = null;
-let retryTimer = null;
-function emit(state, thread = "") { process.stdout.write(state + "\t" + thread + "\n"); }
-function turnId(params) {
-  const turn = params && typeof params.turn === "object" ? params.turn : {};
-  return String(turn.id || params.turnId || params.turn_id || "unknown");
-}
-function threadId(params) {
-  const turn = params && typeof params.turn === "object" ? params.turn : {};
-  return String(params.threadId || params.thread_id || turn.threadId || turn.thread_id || "");
-}
-function connect() {
-  const ws = new WebSocketImpl("ws://127.0.0.1:5900/codex-api/ws");
-  ws.on("open", () => { if (active.size === 0) emit("idle"); });
-  ws.on("message", data => {
-    let event;
-    try { event = JSON.parse(String(data)); } catch { return; }
-    if (event.method === "turn/started") {
-      clearTimeout(completionTimer);
-      active.add(turnId(event.params || {}));
-      emit("working");
-    } else if (event.method === "turn/completed") {
-      active.delete(turnId(event.params || {}));
-      if (active.size > 0) { emit("working"); return; }
-      emit("complete", threadId(event.params || {}));
-      clearTimeout(completionTimer);
-      completionTimer = setTimeout(() => emit("idle"), 8000);
-    }
-  });
-  ws.on("close", () => { clearTimeout(retryTimer); retryTimer = setTimeout(connect, 2000); });
-  ws.on("error", () => ws.close());
-}
-emit("idle");
-connect();
-`
+    readonly property string watcherPath: Qt.resolvedUrl("scripts/watch-codex-activity.js").toString().replace("file://", "")
+    readonly property url idleIconPath: Qt.resolvedUrl("assets/codexui-icon.svg")
 
     function launchCodex() {
         const args = [launcherPath];
@@ -87,10 +39,14 @@ connect();
     Process {
         id: activityWatcher
         running: true
-        command: ["node", "-e", root.watcherCode]
+        command: ["node", root.watcherPath]
 
         stdout: SplitParser {
             onRead: data => root.updateActivity(data.trim())
+        }
+
+        stderr: SplitParser {
+            onRead: data => console.warn("Codex activity watcher:", data.trim())
         }
     }
 
@@ -98,14 +54,22 @@ connect();
         implicitWidth: Theme.iconSize + 2
         implicitHeight: Theme.iconSize + 2
 
-        HypeIcon {
-            id: statusGlyph
+        Image {
             anchors.centerIn: parent
-            name: root.activityState === "working" ? "progress_activity"
-                : root.activityState === "complete" ? "check_circle" : "code"
-            color: root.activityState === "working" ? Theme.warning
-                : root.activityState === "complete" ? Theme.success : Theme.primary
+            width: Theme.iconSize + 2
+            height: Theme.iconSize + 2
+            source: root.idleIconPath
+            fillMode: Image.PreserveAspectFit
+            smooth: true
+            visible: root.activityState === "idle"
+        }
+
+        HypeIcon {
+            anchors.centerIn: parent
+            name: root.activityState === "complete" ? "check_circle" : "progress_activity"
+            color: root.activityState === "complete" ? Theme.success : Theme.warning
             size: Theme.iconSize
+            visible: root.activityState !== "idle"
 
             RotationAnimation on rotation {
                 running: root.activityState === "working"
