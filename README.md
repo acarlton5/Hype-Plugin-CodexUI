@@ -9,6 +9,8 @@ the terminal UI.
 
 - Compact HypeBar icon that toggles a single Codex app window
 - Live agent status: animated amber while working and green confirmation when complete
+- Clicking a completion opens that exact chat and immediately resets the HypeBar icon
+- Dedicated AI icon for the app launcher, task switcher, and dock
 - Chromium app window without tabs or an address bar
 - Local Codex projects and existing ChatGPT/Codex authentication
 - `workspace-write` sandbox with `on-request` approvals
@@ -37,7 +39,8 @@ hype ipc plugins enable hypeCodexUI
 
 Click **CODEX** on HypeBar. On first launch, the plugin installs the pinned MIT
 frontend into `~/.local/share/hype-codex-ui`. Later launches reuse that local
-installation.
+installation. It also installs a local desktop entry and AI icon, so Codex UI
+can be launched and pinned like a normal desktop application.
 
 Runtime logs are written to:
 

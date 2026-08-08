@@ -9,6 +9,7 @@ PluginComponent {
     id: root
 
     property string activityState: "idle"
+    property string completedThreadId: ""
     readonly property string launcherPath: Qt.resolvedUrl("scripts/launch-codex-ui").toString().replace("file://", "")
     readonly property string watcherCode: `
 const fs = require("fs");
@@ -27,10 +28,14 @@ if (!WebSocketImpl) process.exit(0);
 const active = new Set();
 let completionTimer = null;
 let retryTimer = null;
-function emit(state) { process.stdout.write(state + "\n"); }
+function emit(state, thread = "") { process.stdout.write(state + "\t" + thread + "\n"); }
 function turnId(params) {
   const turn = params && typeof params.turn === "object" ? params.turn : {};
   return String(turn.id || params.turnId || params.turn_id || "unknown");
+}
+function threadId(params) {
+  const turn = params && typeof params.turn === "object" ? params.turn : {};
+  return String(params.threadId || params.thread_id || turn.threadId || turn.thread_id || "");
 }
 function connect() {
   const ws = new WebSocketImpl("ws://127.0.0.1:5900/codex-api/ws");
@@ -45,7 +50,7 @@ function connect() {
     } else if (event.method === "turn/completed") {
       active.delete(turnId(event.params || {}));
       if (active.size > 0) { emit("working"); return; }
-      emit("complete");
+      emit("complete", threadId(event.params || {}));
       clearTimeout(completionTimer);
       completionTimer = setTimeout(() => emit("idle"), 8000);
     }
@@ -58,12 +63,21 @@ connect();
 `
 
     function launchCodex() {
-        Quickshell.execDetached([launcherPath]);
+        const args = [launcherPath];
+        if (activityState === "complete" && completedThreadId.length > 0)
+            args.push(completedThreadId);
+        Quickshell.execDetached(args);
+        activityState = "idle";
+        completedThreadId = "";
     }
 
-    function updateActivity(state) {
-        if (state === "idle" || state === "working" || state === "complete")
+    function updateActivity(message) {
+        const parts = message.split("\t");
+        const state = parts[0];
+        if (state === "idle" || state === "working" || state === "complete") {
             activityState = state;
+            completedThreadId = state === "complete" ? parts.slice(1).join("\t") : "";
+        }
     }
 
     pillClickAction: function() {
@@ -85,7 +99,7 @@ connect();
         implicitHeight: Theme.iconSize + 2
 
         HypeIcon {
-            id: icon
+            id: statusGlyph
             anchors.centerIn: parent
             name: root.activityState === "working" ? "progress_activity"
                 : root.activityState === "complete" ? "check_circle" : "code"

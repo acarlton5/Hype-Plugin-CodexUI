@@ -4,10 +4,22 @@ set -euo pipefail
 readonly app_version="0.1.90"
 readonly port="5900"
 readonly url="http://127.0.0.1:${port}"
+readonly requested_thread_id="${1:-}"
+if [ -n "$requested_thread_id" ] && [[ ! "$requested_thread_id" =~ ^[A-Za-z0-9._-]+$ ]]; then
+    echo "Invalid Codex thread ID" >&2
+    exit 2
+fi
+app_url="$url"
+if [ -n "$requested_thread_id" ]; then
+    app_url="$url/thread/$requested_thread_id"
+fi
+readonly app_url
 readonly data_root="${XDG_DATA_HOME:-$HOME/.local/share}/hype-codex-ui"
 readonly state_root="${XDG_STATE_HOME:-$HOME/.local/state}/hype-codex-ui"
 readonly frontend="$data_root/node_modules/.bin/codexapp"
 readonly log_file="$state_root/server.log"
+readonly launcher_path="$(realpath "${BASH_SOURCE[0]}")"
+readonly plugin_root="$(dirname "$(dirname "$launcher_path")")"
 
 notify() {
     hype notify "Codex UI" "$1" --app "Codex UI" >/dev/null 2>&1 || true
@@ -17,6 +29,39 @@ require_command() {
     if ! command -v "$1" >/dev/null 2>&1; then
         notify "Missing required command: $1"
         exit 1
+    fi
+}
+
+install_desktop_integration() {
+    local applications_dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+    local icons_dir="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor/scalable/apps"
+    local icon_source="$plugin_root/assets/codexui-icon.svg"
+    local desktop_file="$applications_dir/codex-ui.desktop"
+    local escaped_launcher="${launcher_path//\\/\\\\}"
+    escaped_launcher="${escaped_launcher//\"/\\\"}"
+
+    mkdir -p "$applications_dir" "$icons_dir"
+    if [ -f "$icon_source" ]; then
+        install -m 0644 "$icon_source" "$icons_dir/codex-ui.svg"
+        install -m 0644 "$icon_source" "$icons_dir/chrome-127.0.0.1__-Default.svg"
+    fi
+
+    printf '%s\n' \
+        '[Desktop Entry]' \
+        'Type=Application' \
+        'Name=Codex UI' \
+        'Comment=Local Codex development workspace' \
+        "Exec=\"$escaped_launcher\"" \
+        'Icon=codex-ui' \
+        'Terminal=false' \
+        'Categories=Development;IDE;' \
+        'StartupNotify=true' \
+        'StartupWMClass=chrome-127.0.0.1__-Default' \
+        'X-GNOME-WMClass=chrome-127.0.0.1__-Default' \
+        >"$desktop_file"
+
+    if command -v update-desktop-database >/dev/null 2>&1; then
+        update-desktop-database "$applications_dir" >/dev/null 2>&1 || true
     fi
 }
 
@@ -72,18 +117,18 @@ start_frontend() {
 open_app_window() {
     if command -v flatpak >/dev/null 2>&1 && \
         flatpak info io.github.ungoogled_software.ungoogled_chromium >/dev/null 2>&1; then
-        exec flatpak run io.github.ungoogled_software.ungoogled_chromium --app="$url" --class=CodexUI
+        exec flatpak run io.github.ungoogled_software.ungoogled_chromium --app="$app_url" --class=CodexUI
     fi
 
     local browser
     for browser in ungoogled-chromium chromium chromium-browser brave-browser brave google-chrome-stable google-chrome; do
         if command -v "$browser" >/dev/null 2>&1; then
-            exec "$browser" --app="$url" --class=CodexUI
+            exec "$browser" --app="$app_url" --class=CodexUI
         fi
     done
 
     install_browser
-    exec flatpak run io.github.ungoogled_software.ungoogled_chromium --app="$url" --class=CodexUI
+    exec flatpak run io.github.ungoogled_software.ungoogled_chromium --app="$app_url" --class=CodexUI
 }
 
 install_browser() {
@@ -127,13 +172,17 @@ require_command node
 require_command npm
 require_command curl
 require_command codex
+install_desktop_integration
 
 if toggle_existing_window; then
-    exit 0
+    if [ -z "$requested_thread_id" ]; then
+        exit 0
+    fi
+    sleep 0.15
 fi
 
 if [ -x "$HOME/.local/bin/codex-ui" ] && curl --silent --fail --output /dev/null "$url"; then
-    exec "$HOME/.local/bin/codex-ui"
+    exec "$HOME/.local/bin/codex-ui" "$requested_thread_id"
 fi
 
 if [ ! -x "$frontend" ]; then
