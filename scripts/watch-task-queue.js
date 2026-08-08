@@ -22,22 +22,17 @@ function readJson(file) {
     }
 }
 
-function firstExistingQueueRoot() {
-    const candidates = [
-        process.env.HYPE_CODEX_TASK_QUEUE,
-        path.join(home, "DevBox", "Projects", ".agent-tasks"),
-        path.join(home, "Projects", ".agent-tasks")
-    ].filter(Boolean);
-    return candidates.find(candidate => fs.existsSync(candidate)) || candidates[0];
-}
 
 function loadConfig() {
     const raw = readJson(configPath);
-    const queueRoot = path.resolve(String(raw.queueRoot || firstExistingQueueRoot()));
-    const workspaceRoot = path.resolve(String(raw.workspaceRoot || path.dirname(queueRoot)));
+    const configuredQueueRoot = typeof raw.queueRoot === "string" ? raw.queueRoot.trim() : "";
+    const configuredWorkspaceRoot = typeof raw.workspaceRoot === "string" ? raw.workspaceRoot.trim() : "";
+    const enabled = raw.enabled === true && configuredQueueRoot.length > 0 && configuredWorkspaceRoot.length > 0;
+    const queueRoot = enabled ? path.resolve(configuredQueueRoot) : "";
+    const workspaceRoot = enabled ? path.resolve(configuredWorkspaceRoot) : "";
     const intervalSeconds = Math.max(5, Number(raw.intervalSeconds) || 30);
     return {
-        enabled: raw.enabled !== false,
+        enabled,
         queueRoot,
         workspaceRoot,
         intervalMs: intervalSeconds * 1000,
@@ -217,7 +212,11 @@ async function tick() {
 if (once) {
     tick().then(() => process.exitCode = 0);
 } else {
-    tick();
     const config = loadConfig();
-    setInterval(tick, config.intervalMs);
+    if (!config.enabled) {
+        process.exit(0);
+    } else {
+        tick();
+        setInterval(tick, config.intervalMs);
+    }
 }

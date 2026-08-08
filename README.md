@@ -62,22 +62,40 @@ your user account. Keep the service local and retain Codex approval prompts.
 This plugin is MIT licensed. `codexapp` and Codex are separate projects governed
 by their respective licenses and terms.
 
-## Agent task queue
 
-The plugin checks for queued work without calling a model. It looks for the
-first existing queue at `~/DevBox/Projects/.agent-tasks` or
-`~/Projects/.agent-tasks` and creates these directories:
+## Optional agent task queue
+
+The task-queue integration is disabled by default. A normal plugin installation
+does not create queue folders, start a persistent queue helper, or assume any
+company workflow or filesystem layout.
+
+Users who want filesystem-triggered Codex work can opt in by creating any queue
+root with this structure:
 
 ```text
-.agent-tasks/
+<queue-root>/
   inbox/
   in-progress/
   completed/
   failed/
 ```
 
-Only `.md` files in `inbox/` count as tasks. Each task needs YAML frontmatter
-with a `workspace` path relative to the directory containing `.agent-tasks`:
+Then create `~/.config/hype-codex-ui/task-queue.json` with explicit absolute
+paths:
+
+```json
+{
+  "enabled": true,
+  "queueRoot": "/absolute/path/to/queue-root",
+  "workspaceRoot": "/absolute/path/to/projects",
+  "intervalSeconds": 30,
+  "sandbox": "workspace-write"
+}
+```
+
+Restart HypeShell after enabling or disabling the queue. Only `.md` files in
+`inbox/` count as tasks. Each task needs YAML frontmatter with a `workspace`
+path relative to the configured `workspaceRoot`:
 
 ```markdown
 ---
@@ -89,20 +107,8 @@ workspace: MyProject
 Describe the bounded development task and its acceptance checks.
 ```
 
-The watcher polls locally every 30 seconds. An empty inbox performs no Codex
-request and uses no model quota. When a task exists, the watcher atomically
-moves it to `in-progress/`, runs `codex exec --sandbox workspace-write`, then
-moves the task and its JSONL run record to `completed/` or `failed/`.
-
-Override paths or disable the worker with
-`~/.config/hype-codex-ui/task-queue.json`:
-
-```json
-{
-  "enabled": true,
-  "queueRoot": "/absolute/path/to/.agent-tasks",
-  "workspaceRoot": "/absolute/path/to/projects",
-  "intervalSeconds": 30,
-  "sandbox": "workspace-write"
-}
-```
+The helper performs a local filesystem check first. An empty inbox never starts
+Codex and uses no model quota. When a task exists, it is atomically moved to
+`in-progress/`; `codex exec --sandbox workspace-write` runs only after that
+claim succeeds. The task and its JSONL run record then move to `completed/` or
+`failed/`.
