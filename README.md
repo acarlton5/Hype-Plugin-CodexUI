@@ -7,7 +7,7 @@ the terminal UI.
 
 ## Features
 
-- Compact HypeBar icon that toggles a single Codex app window
+- Compact HypeBar icon that hides and restores a single Codex app window
 - Live agent status: AI icon while idle, animated amber while working, and green confirmation when complete
 - Clicking a completion opens that exact chat and immediately resets the HypeBar icon
 - Dedicated AI icon for the app launcher, task switcher, and dock
