@@ -66,7 +66,7 @@ by their respective licenses and terms.
 ## Optional agent task queue
 
 The task queue activates automatically on DSS developer machines when either
-`~/DevBox` or `~/Projects` contains both `.codex_profile/` and `AGENTS/`. Its
+`~/DevBox` contains both `.codex_profile/` and `AGENTS/`. Its
 default queue is `<detected-root>/.agent-tasks`, and its workspace root is the
 detected DSS root. A generic folder named `DevBox` alone does not activate it.
 

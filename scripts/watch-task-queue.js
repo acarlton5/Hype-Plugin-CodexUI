@@ -34,7 +34,7 @@ function isDssRoot(candidate) {
 }
 
 function detectDssRoot() {
-    const candidates = [path.join(home, "DevBox"), path.join(home, "Projects")];
+    const candidates = [path.join(home, "DevBox")];
     return candidates.find(isDssRoot) || "";
 }
 
