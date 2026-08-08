@@ -61,3 +61,48 @@ your user account. Keep the service local and retain Codex approval prompts.
 
 This plugin is MIT licensed. `codexapp` and Codex are separate projects governed
 by their respective licenses and terms.
+
+## Agent task queue
+
+The plugin checks for queued work without calling a model. It looks for the
+first existing queue at `~/DevBox/Projects/.agent-tasks` or
+`~/Projects/.agent-tasks` and creates these directories:
+
+```text
+.agent-tasks/
+  inbox/
+  in-progress/
+  completed/
+  failed/
+```
+
+Only `.md` files in `inbox/` count as tasks. Each task needs YAML frontmatter
+with a `workspace` path relative to the directory containing `.agent-tasks`:
+
+```markdown
+---
+workspace: MyProject
+---
+
+# Goal
+
+Describe the bounded development task and its acceptance checks.
+```
+
+The watcher polls locally every 30 seconds. An empty inbox performs no Codex
+request and uses no model quota. When a task exists, the watcher atomically
+moves it to `in-progress/`, runs `codex exec --sandbox workspace-write`, then
+moves the task and its JSONL run record to `completed/` or `failed/`.
+
+Override paths or disable the worker with
+`~/.config/hype-codex-ui/task-queue.json`:
+
+```json
+{
+  "enabled": true,
+  "queueRoot": "/absolute/path/to/.agent-tasks",
+  "workspaceRoot": "/absolute/path/to/projects",
+  "intervalSeconds": 30,
+  "sandbox": "workspace-write"
+}
+```
