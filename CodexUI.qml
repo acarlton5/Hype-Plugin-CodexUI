@@ -10,12 +10,17 @@ PluginComponent {
 
     property string activityState: "idle"
     property string completedThreadId: ""
+    property bool launchPending: false
     readonly property string launcherPath: Qt.resolvedUrl("scripts/launch-codex-ui").toString().replace("file://", "")
     readonly property string watcherPath: Qt.resolvedUrl("scripts/watch-codex-activity.js").toString().replace("file://", "")
     readonly property string taskQueuePath: Qt.resolvedUrl("scripts/watch-task-queue.js").toString().replace("file://", "")
     readonly property url idleIconPath: Qt.resolvedUrl("assets/codexui-icon.svg")
 
     function launchCodex() {
+        if (launchPending)
+            return;
+        launchPending = true;
+        launchDebounce.restart();
         const args = [launcherPath];
         if (activityState === "complete" && completedThreadId.length > 0)
             args.push(completedThreadId);
@@ -36,6 +41,13 @@ PluginComponent {
     pillClickAction: function() {
         root.launchCodex();
     }
+    Timer {
+        id: launchDebounce
+        interval: 1500
+        repeat: false
+        onTriggered: root.launchPending = false
+    }
+
 
     Process {
         id: activityWatcher
